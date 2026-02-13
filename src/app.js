@@ -13,12 +13,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors(
-  {
-    origin: "*",
-    credentials: true
-  }
-));
+app.use(cors());
 app.use(express.json());
 
 const { dailySummaryQueue } = require('./jobs/dailySummary');
