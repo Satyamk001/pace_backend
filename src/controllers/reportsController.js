@@ -22,20 +22,20 @@ exports.getStats = async (req, res) => {
     }
 
     // Get health metrics for the range
-    // We want aggregation: date, avg_pain, avg_fatigue
     const healthQuery = `
         SELECT 
             date, 
             pain_level, 
-            fatigue_level 
+            fatigue_level,
+            mood
         FROM health_metrics 
         WHERE user_id = $1 
-        AND date >= NOW() - INTERVAL '${range} days' 
+        AND date >= CURRENT_DATE - INTERVAL '${range} days' 
         ORDER BY date ASC
     `;
     const { rows: healthRows } = await db.query(healthQuery, [userId]);
 
-    // Get tasks completed per day
+    // Get tasks completed per day history
     const tasksQuery = `
         SELECT 
             DATE(completed_at) as date, 
@@ -43,35 +43,50 @@ exports.getStats = async (req, res) => {
         FROM todos 
         WHERE user_id = $1 
         AND is_completed = true 
-        AND completed_at >= NOW() - INTERVAL '${range} days' 
+        AND completed_at >= CURRENT_DATE - INTERVAL '${range} days' 
         GROUP BY DATE(completed_at) 
         ORDER BY DATE(completed_at) ASC
     `;
-    // Note: 'completed_at' column doesn't exist yet! We need to add it or use updated_at if we track it.
-    // For now, let's assume we need to add 'completed_at' to todos schema or just use 'updated_at' if is_completed is true.
-    // Let's use 'updated_at' for simplicity in Phase 3, but ideally we should migrate to add 'completed_at'.
-    // Actually, let's checkout existing schema.
+    const { rows: taskHistoryRows } = await db.query(tasksQuery, [userId]);
+
+    // Aggregated Stats for Range
     
-    // Schema check:
-    // todos: id, user_id, title, is_completed, created_at, due_date, energy_level
-    // We don't have completed_at. We'll use updated_at for now, assuming usually update happens when completing.
-    
-    // WAIT: schema.sql didn't strictly define updated_at default logic properly for updates? 
-    // Let's check schema.sql. Defaults are usually created_at. 
-    // Let's assume we return mockup data for tasks for now if column missing, or doing a quick migration.
-    // Better: Add completed_at column in a migration script.
-    
-    // Aggregated Lifetime Stats for Profile
-    const totalTasksQuery = 'SELECT COUNT(*) FROM todos WHERE user_id = $1 AND is_completed = true';
+    // Total Tasks Completed (In Range)
+    const totalTasksQuery = `
+        SELECT COUNT(*) 
+        FROM todos 
+        WHERE user_id = $1 
+        AND is_completed = true
+        AND completed_at >= CURRENT_DATE - INTERVAL '${range} days'
+    `;
     const { rows: taskCountRows } = await db.query(totalTasksQuery, [userId]);
     const totalTasks = parseInt(taskCountRows[0].count);
 
-    const calmDaysQuery = "SELECT COUNT(*) FROM daily_logs WHERE user_id = $1 AND day_type != 'FLARE_UP'";
+    // Calm Days (In Range)
+    const calmDaysQuery = `
+        SELECT COUNT(*) 
+        FROM daily_logs 
+        WHERE user_id = $1 
+        AND day_type != 'FLARE_UP'
+        AND date >= CURRENT_DATE - INTERVAL '${range} days'
+    `;
     const { rows: calmDaysRows } = await db.query(calmDaysQuery, [userId]);
     const calmDays = parseInt(calmDaysRows[0].count);
 
-    // Calculate Streak (Consecutive days with a log)
-    const streakQuery = 'SELECT date FROM daily_logs WHERE user_id = $1 ORDER BY date DESC';
+    // Pain Days (In Range) - NEW
+    const painDaysQuery = `
+        SELECT COUNT(*) 
+        FROM health_metrics 
+        WHERE user_id = $1 
+        AND pain_level >= 7
+        AND date >= CURRENT_DATE - INTERVAL '${range} days'
+    `;
+    const { rows: painDaysRows } = await db.query(painDaysQuery, [userId]);
+    const painDays = parseInt(painDaysRows[0].count);
+
+    // Calculate Streak (Consecutive days with a log - All Time relative to today)
+    // Streak is usually "current streak", so it doesn't depend on range.
+    const streakQuery = 'SELECT date FROM daily_logs WHERE user_id = $1 ORDER BY date DESC LIMIT 365';
     const { rows: logRows } = await db.query(streakQuery, [userId]);
     
     let streak = 0;
@@ -80,23 +95,34 @@ exports.getStats = async (req, res) => {
         const yesterday = new Date(today);
         yesterday.setDate(today.getDate() - 1);
         
+        // Reset times for accurate comparison
+        today.setHours(0,0,0,0);
+        yesterday.setHours(0,0,0,0);
+        
         const lastLogDate = new Date(logRows[0].date);
+        lastLogDate.setHours(0,0,0,0); // Ensure UTC/Local consistency handling if date is YYYY-MM-DD
+        // Note: 'date' from postgres might be midnight UTC.
         
         // Check if streak is active (logged today or yesterday)
-        const isToday = lastLogDate.toDateString() === today.toDateString();
-        const isYesterday = lastLogDate.toDateString() === yesterday.toDateString();
+        const isToday = lastLogDate.getTime() === today.getTime();
+        const isYesterday = lastLogDate.getTime() === yesterday.getTime();
         
         if (isToday || isYesterday) {
             streak = 1;
             for (let i = 0; i < logRows.length - 1; i++) {
                 const current = new Date(logRows[i].date);
                 const next = new Date(logRows[i+1].date);
+                
+                // Normalize
+                current.setHours(0,0,0,0);
+                next.setHours(0,0,0,0);
+
                 const diffTime = Math.abs(current.getTime() - next.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)); 
                 
                 if (diffDays === 1) {
                     streak++;
-                } else {
+                } else if (diffDays > 1) {
                     break;
                 }
             }
@@ -104,10 +130,13 @@ exports.getStats = async (req, res) => {
     }
 
     const result = { 
-        summary: { totalTasks, calmDays, streak },
-        history: { health: healthRows, tasks: [] } // tasks array logic from before was incomplete/commented, leaving as is or fix if needed. 
+        summary: { totalTasks, calmDays, painDays, streak },
+        history: { 
+            health: healthRows, 
+            tasks: taskHistoryRows 
+        } 
     };
-    await redis.set(cacheKey, JSON.stringify(result), 600); // 10 minutes TTL
+    await redis.set(cacheKey, result, 600); // 10 minutes TTL
     res.json(result); 
   } catch (error) {
     console.error(error);
@@ -119,6 +148,12 @@ exports.getCalendarData = async (req, res) => {
   try {
     const { userId } = req.auth;
     
+    // Check cache
+    const cachedData = await redis.get(`calendar:${userId}`);
+    if (cachedData) {
+         return res.json(cachedData);
+    }
+
     // Feature Gating
     const { rows: userRows } = await db.query('SELECT is_premium FROM users WHERE id = $1', [userId]);
     const isPremium = userRows[0]?.is_premium;
@@ -186,7 +221,7 @@ exports.getCalendarData = async (req, res) => {
     });
 
     // Cache for 5 mins
-    await redis.set(`calendar:${userId}`, JSON.stringify(calendarData), 300);
+    await redis.set(`calendar:${userId}`, calendarData, 300);
     res.json(calendarData);
   } catch (error) {
     console.error(error);
