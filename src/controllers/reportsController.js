@@ -6,7 +6,7 @@ exports.getStats = async (req, res) => {
     const { userId } = req.auth;
     let { range = '7' } = req.query;
 
-    const cacheKey = `stats:${userId}:${range}`;
+    const cacheKey = `stats_v2:${userId}:${range}`;
     const cachedData = await redis.get(cacheKey);
     if (cachedData) {
         return res.json(cachedData); 
@@ -149,7 +149,7 @@ exports.getCalendarData = async (req, res) => {
     const { userId } = req.auth;
     
     // Check cache
-    const cachedData = await redis.get(`calendar:${userId}`);
+    const cachedData = await redis.get(`calendar_v2:${userId}`);
     if (cachedData) {
          return res.json(cachedData);
     }
@@ -221,7 +221,7 @@ exports.getCalendarData = async (req, res) => {
     });
 
     // Cache for 5 mins
-    await redis.set(`calendar:${userId}`, calendarData, 300);
+    await redis.set(`calendar_v2:${userId}`, calendarData, 300);
     res.json(calendarData);
   } catch (error) {
     console.error(error);
