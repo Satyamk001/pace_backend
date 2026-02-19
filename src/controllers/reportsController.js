@@ -205,7 +205,12 @@ exports.getCalendarData = async (req, res) => {
     const calendarData = {};
     rows.forEach(row => {
         const d = new Date(row.date);
-        const dateStr = d.toISOString().split('T')[0];
+        // Fix: Manual construction to avoid toISOString() shifting dates in East timezones (e.g. IST)
+        // pg driver parses DATE columns as local midnight. toISOString converts to UTC, shifting back.
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
         
         let completionPercent = 0;
         if (parseInt(row.total_tasks) > 0) {
