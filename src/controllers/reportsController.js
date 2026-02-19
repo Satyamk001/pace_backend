@@ -16,9 +16,9 @@ exports.getStats = async (req, res) => {
     const { rows: userRows } = await db.query('SELECT is_premium FROM users WHERE id = $1', [userId]);
     const isPremium = userRows[0]?.is_premium;
 
-    // If requesting more than 7 days and not premium, force to 7
-    if (parseInt(range) > 7 && !isPremium) {
-        range = '7';
+    // If requesting more than 30 days and not premium, force to 30
+    if (parseInt(range) > 30 && !isPremium) {
+        range = '30';
     }
 
     // Get health metrics for the range
