@@ -39,14 +39,14 @@ exports.getAllTodos = async (req, res) => {
 exports.createTodo = async (req, res) => {
   try {
     const { userId } = req.auth;
-    const { title, dueDate, energyLevel = 'MEDIUM', progress = 0 } = req.body;
+    const { title, dueDate, energyLevel = 'MEDIUM', progress = 0, feedback = null } = req.body;
     
     // Ensure user exists (rudimentary sync)
     await db.query('INSERT INTO users (id, email) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING', [userId, 'placeholder@email.com']); 
 
     const { rows } = await db.query(
-      'INSERT INTO todos (user_id, title, due_date, energy_level, progress) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [userId, title, dueDate, energyLevel, progress]
+      'INSERT INTO todos (user_id, title, due_date, energy_level, progress, feedback) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [userId, title, dueDate, energyLevel, progress, feedback]
     );
     res.status(201).json(rows[0]);
   } catch (error) {
