@@ -39,14 +39,14 @@ exports.getAllTodos = async (req, res) => {
 exports.createTodo = async (req, res) => {
   try {
     const { userId } = req.auth;
-    const { title, dueDate, energyLevel = 'MEDIUM', progress = 0, feedback = null } = req.body;
+    const { title, dueDate, energyLevel = 'MEDIUM', progress = 0, feedback = null, repeatType = 'NONE' } = req.body;
     
     // Ensure user exists (rudimentary sync)
     await db.query('INSERT INTO users (id, email) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING', [userId, 'placeholder@email.com']); 
 
     const { rows } = await db.query(
-      'INSERT INTO todos (user_id, title, due_date, energy_level, progress, feedback) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [userId, title, dueDate, energyLevel, progress, feedback]
+      'INSERT INTO todos (user_id, title, due_date, energy_level, progress, feedback, repeat_type) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [userId, title, dueDate, energyLevel, progress, feedback, repeatType]
     );
     res.status(201).json(rows[0]);
   } catch (error) {
@@ -59,7 +59,7 @@ exports.updateTodo = async (req, res) => {
   try {
     const { id } = req.params;
     const { userId } = req.auth;
-    const { title, isCompleted, dueDate, energyLevel, feedback, progress } = req.body;
+    const { title, isCompleted, dueDate, energyLevel, feedback, progress, repeatType } = req.body;
 
     const { rows } = await db.query(
       `UPDATE todos 
@@ -69,13 +69,14 @@ exports.updateTodo = async (req, res) => {
            energy_level = COALESCE($4, energy_level),
            feedback = COALESCE($5, feedback),
            progress = COALESCE($6, progress),
+           repeat_type = COALESCE($7, repeat_type),
            completed_at = CASE 
                             WHEN $2::boolean IS TRUE THEN NOW() 
                             WHEN $2::boolean IS FALSE THEN NULL 
                             ELSE completed_at 
                           END
-       WHERE id = $7 AND user_id = $8 RETURNING *`,
-      [title, isCompleted, dueDate, energyLevel, feedback, progress, id, userId]
+       WHERE id = $8 AND user_id = $9 RETURNING *`,
+      [title, isCompleted, dueDate, energyLevel, feedback, progress, repeatType, id, userId]
     );
 
     if (rows.length === 0) {

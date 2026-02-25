@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS todos (
     feedback TEXT,
     due_date TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
+    repeat_type VARCHAR(20) DEFAULT 'NONE',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -37,7 +37,21 @@ exports.getWeightHistory = async (req, res) => {
     query += ' ORDER BY date ASC';
 
     const { rows } = await db.query(query, params);
-    res.json(rows);
+    
+    // Server-side Aggregation
+    let min = 0, max = 0, avg = 0;
+    if (rows.length > 0) {
+        const weights = rows.map(r => parseFloat(r.weight));
+        min = Math.min(...weights);
+        max = Math.max(...weights);
+        const sum = weights.reduce((acc, val) => acc + val, 0);
+        avg = sum / weights.length;
+    }
+
+    res.json({
+        history: rows,
+        stats: { min, max, avg }
+    });
   } catch (error) {
     console.error('Error fetching weight history:', error);
     res.status(500).json({ error: 'Server error' });
