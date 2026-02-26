@@ -11,12 +11,22 @@ exports.getAllTodos = async (req, res) => {
 
     if (date) {
         paramCount++;
-        // If status is 'completed', look at completed_at or updated_at
-        // If status is 'pending', look at due_date (planner view)
-        // For now, simpler logic:
-        // If filtering by date, we generally mean "Tasks for this day"
-        // This could mean: Due on this day OR Completed on this day
-        query += ` AND (DATE(due_date) = $${paramCount} OR DATE(completed_at) = $${paramCount})`;
+        // Non-repeating: exact date match
+        // DAILY: due_date <= queryDate (shows every day from start)
+        // WEEKLY: due_date <= queryDate AND same weekday
+        // MONTHLY: due_date <= queryDate AND same day-of-month
+        // YEARLY: due_date <= queryDate AND same month + day
+        query += ` AND (
+          (repeat_type IS NULL OR repeat_type = 'NONE') AND (DATE(due_date) = $${paramCount} OR DATE(completed_at) = $${paramCount})
+          OR (repeat_type = 'DAILY' AND DATE(due_date) <= $${paramCount} AND is_completed = false)
+          OR (repeat_type = 'WEEKLY' AND DATE(due_date) <= $${paramCount} AND is_completed = false
+              AND EXTRACT(DOW FROM due_date) = EXTRACT(DOW FROM $${paramCount}::date))
+          OR (repeat_type = 'MONTHLY' AND DATE(due_date) <= $${paramCount} AND is_completed = false
+              AND EXTRACT(DAY FROM due_date) = EXTRACT(DAY FROM $${paramCount}::date))
+          OR (repeat_type = 'YEARLY' AND DATE(due_date) <= $${paramCount} AND is_completed = false
+              AND EXTRACT(MONTH FROM due_date) = EXTRACT(MONTH FROM $${paramCount}::date)
+              AND EXTRACT(DAY FROM due_date) = EXTRACT(DAY FROM $${paramCount}::date))
+        )`;
         params.push(date);
     }
     
