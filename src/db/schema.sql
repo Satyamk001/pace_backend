@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS health_metrics (
     date DATE NOT NULL,
     pain_level INTEGER CHECK (pain_level >= 0 AND pain_level <= 10),
     fatigue_level INTEGER CHECK (fatigue_level >= 0 AND fatigue_level <= 10),
+    painkiller_count INTEGER DEFAULT 0,
     mood VARCHAR(50),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

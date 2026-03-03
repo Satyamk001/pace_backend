@@ -161,7 +161,10 @@ exports.getCalendarData = async (req, res) => {
                 dl.date,
                 dl.day_type,
                 hm.pain_level,
-                hm.fatigue_level
+                hm.fatigue_level,
+                hm.painkiller_count,
+                hm.mood,
+                hm.notes
             FROM daily_logs dl
             LEFT JOIN health_metrics hm ON dl.user_id = hm.user_id AND dl.date = hm.date
             WHERE dl.user_id = $1
@@ -171,6 +174,9 @@ exports.getCalendarData = async (req, res) => {
             dh.day_type,
             dh.pain_level,
             dh.fatigue_level,
+            dh.painkiller_count,
+            dh.mood,
+            dh.notes,
             COALESCE(ts.total_tasks, 0) as total_tasks,
             COALESCE(ts.completed_tasks, 0) as completed_tasks
         FROM DailyHealth dh
@@ -200,6 +206,9 @@ exports.getCalendarData = async (req, res) => {
             day_type: row.day_type,
             pain_level: row.pain_level,
             fatigue_level: row.fatigue_level,
+            painkiller_count: row.painkiller_count ?? 0,
+            mood: row.mood,
+            notes: row.notes,
             total_tasks: parseInt(row.total_tasks),
             completion_percent: completionPercent
         };

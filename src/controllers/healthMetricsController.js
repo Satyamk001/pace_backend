@@ -19,23 +19,23 @@ exports.getHealthMetrics = async (req, res) => {
 exports.logHealthMetrics = async (req, res) => {
   try {
     const { userId } = req.auth;
-    const { date, painLevel, fatigueLevel, mood, notes } = req.body;
+    const { date, painLevel, fatigueLevel, mood, notes, painkillerCount } = req.body;
 
     const { rows } = await db.query(
-      `INSERT INTO health_metrics (user_id, date, pain_level, fatigue_level, mood, notes)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO health_metrics (user_id, date, pain_level, fatigue_level, mood, notes, painkiller_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (user_id, date)
        DO UPDATE SET 
          pain_level = EXCLUDED.pain_level,
          fatigue_level = EXCLUDED.fatigue_level,
          mood = EXCLUDED.mood,
-         notes = EXCLUDED.notes
+         notes = EXCLUDED.notes,
+         painkiller_count = EXCLUDED.painkiller_count
        RETURNING *`,
-      [userId, date, painLevel, fatigueLevel, mood, notes]
+      [userId, date, painLevel, fatigueLevel, mood, notes, painkillerCount ?? 0]
     );
 
-    // Context Engine Logic (Start of "Intelligence")
-    // If pain > 7, we might want to suggest marking the day as 'FLARE_UP' automatically if not already
+    // Context Engine Logic: auto-flag FLARE_UP if pain is high
     if (painLevel >= 7) {
         await db.query(
             `INSERT INTO daily_logs (user_id, date, day_type) 
