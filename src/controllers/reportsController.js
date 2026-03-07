@@ -168,9 +168,18 @@ exports.getCalendarData = async (req, res) => {
             FROM daily_logs dl
             LEFT JOIN health_metrics hm ON dl.user_id = hm.user_id AND dl.date = hm.date
             WHERE dl.user_id = $1
+        ),
+        DailyFood AS (
+            SELECT
+                user_id,
+                date,
+                SUM(calories) as total_calories
+            FROM daily_food_entries
+            WHERE user_id = $1 AND is_eaten = true
+            GROUP BY user_id, date
         )
         SELECT 
-            COALESCE(dh.date, ts.date) as date,
+            COALESCE(dh.date, ts.date, df.date) as date,
             dh.day_type,
             dh.pain_level,
             dh.fatigue_level,
@@ -178,11 +187,13 @@ exports.getCalendarData = async (req, res) => {
             dh.mood,
             dh.notes,
             COALESCE(ts.total_tasks, 0) as total_tasks,
-            COALESCE(ts.completed_tasks, 0) as completed_tasks
+            COALESCE(ts.completed_tasks, 0) as completed_tasks,
+            COALESCE(df.total_calories, 0) as total_calories
         FROM DailyHealth dh
         FULL OUTER JOIN TaskStats ts ON dh.date = ts.date AND dh.user_id = ts.user_id
-        WHERE (dh.date IS NOT NULL OR ts.date IS NOT NULL)
-        ${dateFilter ? dateFilter.replace('dl.date', 'COALESCE(dh.date, ts.date)') : ''}
+        FULL OUTER JOIN DailyFood df ON COALESCE(dh.date, ts.date) = df.date AND COALESCE(dh.user_id, ts.user_id) = df.user_id
+        WHERE (dh.date IS NOT NULL OR ts.date IS NOT NULL OR df.date IS NOT NULL)
+        ${dateFilter ? dateFilter.replace('dl.date', 'COALESCE(dh.date, ts.date, df.date)') : ''}
     `;
 
     const { rows } = await db.query(query, [userId]);
@@ -210,7 +221,8 @@ exports.getCalendarData = async (req, res) => {
             mood: row.mood,
             notes: row.notes,
             total_tasks: parseInt(row.total_tasks),
-            completion_percent: completionPercent
+            completion_percent: completionPercent,
+            total_calories: parseInt(row.total_calories)
         };
     });
 
