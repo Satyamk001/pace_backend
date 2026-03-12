@@ -46,6 +46,11 @@ exports.logHealthMetrics = async (req, res) => {
             [userId, date]
         );
     }
+    
+    // Invalidate calendar caches to ensure UI shows updated data immediately
+    const redis = require('../config/redis');
+    await redis.del(`calendar:${userId}`);
+    await redis.del(`calendar_v2:${userId}`);
 
     res.json(rows[0]);
   } catch (error) {

@@ -3,13 +3,13 @@ const db = require('../config/db');
 exports.logFood = async (req, res) => {
   try {
     const { userId } = req.auth;
-    const { date, name, quantity, calories, time, notes } = req.body;
+    const { date, name, quantity, calories, protein, fat, carbs, time, notes } = req.body;
 
     const { rows } = await db.query(
-      `INSERT INTO food_logs (user_id, date, name, quantity, calories, time, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO food_logs (user_id, date, name, quantity, calories, protein, fat, carbs, time, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [userId, date, name, quantity, calories || 0, time, notes]
+      [userId, date, name, quantity, calories || 0, protein || 0, fat || 0, carbs || 0, time, notes]
     );
 
     res.json(rows[0]);

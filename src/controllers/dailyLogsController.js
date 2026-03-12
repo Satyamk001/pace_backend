@@ -32,6 +32,7 @@ exports.upsertDailyLog = async (req, res) => {
       [userId, date, dayType || null, mood || null]
     );
     await redis.del(`calendar:${userId}`); // Invalidate calendar cache
+    await redis.del(`calendar_v2:${userId}`); // Invalidate v2 calendar cache
     res.json(rows[0]);
   } catch (error) {
     console.error(error);

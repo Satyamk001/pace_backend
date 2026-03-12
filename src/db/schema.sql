@@ -92,6 +92,9 @@ CREATE TABLE IF NOT EXISTS food_logs (
     name VARCHAR(255) NOT NULL,
     quantity VARCHAR(100),
     calories INTEGER DEFAULT 0,
+    protein DECIMAL(6,2) DEFAULT 0,
+    fat DECIMAL(6,2) DEFAULT 0,
+    carbs DECIMAL(6,2) DEFAULT 0,
     time TIME,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -109,6 +112,9 @@ CREATE TABLE IF NOT EXISTS food_templates (
     default_quantity VARCHAR(100),
     unit VARCHAR(50) DEFAULT 'piece',
     calories INTEGER DEFAULT 0,
+    protein DECIMAL(6,2) DEFAULT 0,
+    fat DECIMAL(6,2) DEFAULT 0,
+    carbs DECIMAL(6,2) DEFAULT 0,
     is_ai_estimated BOOLEAN DEFAULT FALSE,
     sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -128,6 +134,9 @@ CREATE TABLE IF NOT EXISTS daily_food_entries (
     quantity VARCHAR(100),
     unit VARCHAR(50),
     calories INTEGER DEFAULT 0,
+    protein DECIMAL(6,2) DEFAULT 0,
+    fat DECIMAL(6,2) DEFAULT 0,
+    carbs DECIMAL(6,2) DEFAULT 0,
     is_eaten BOOLEAN DEFAULT FALSE,
     is_adhoc BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

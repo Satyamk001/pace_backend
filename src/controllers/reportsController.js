@@ -173,7 +173,10 @@ exports.getCalendarData = async (req, res) => {
             SELECT
                 user_id,
                 date,
-                SUM(calories) as total_calories
+                SUM(calories) as total_calories,
+                SUM(protein) as total_protein,
+                SUM(fat) as total_fat,
+                SUM(carbs) as total_carbs
             FROM daily_food_entries
             WHERE user_id = $1 AND is_eaten = true
             GROUP BY user_id, date
@@ -188,7 +191,10 @@ exports.getCalendarData = async (req, res) => {
             dh.notes,
             COALESCE(ts.total_tasks, 0) as total_tasks,
             COALESCE(ts.completed_tasks, 0) as completed_tasks,
-            COALESCE(df.total_calories, 0) as total_calories
+            COALESCE(df.total_calories, 0) as total_calories,
+            COALESCE(df.total_protein, 0) as total_protein,
+            COALESCE(df.total_fat, 0) as total_fat,
+            COALESCE(df.total_carbs, 0) as total_carbs
         FROM DailyHealth dh
         FULL OUTER JOIN TaskStats ts ON dh.date = ts.date AND dh.user_id = ts.user_id
         FULL OUTER JOIN DailyFood df ON COALESCE(dh.date, ts.date) = df.date AND COALESCE(dh.user_id, ts.user_id) = df.user_id
@@ -222,7 +228,10 @@ exports.getCalendarData = async (req, res) => {
             notes: row.notes,
             total_tasks: parseInt(row.total_tasks),
             completion_percent: completionPercent,
-            total_calories: parseInt(row.total_calories)
+            total_calories: parseInt(row.total_calories),
+            total_protein: parseFloat(row.total_protein || 0),
+            total_fat: parseFloat(row.total_fat || 0),
+            total_carbs: parseFloat(row.total_carbs || 0)
         };
     });
 
