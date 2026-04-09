@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS health_metrics (
     fatigue_level INTEGER CHECK (fatigue_level >= 0 AND fatigue_level <= 10),
     painkiller_count INTEGER DEFAULT 0,
     mood VARCHAR(50),
-    notes TEXT,
+    notes JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, date)
 );

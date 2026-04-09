@@ -29,7 +29,7 @@ exports.logHealthMetrics = async (req, res) => {
          pain_level = EXCLUDED.pain_level,
          fatigue_level = EXCLUDED.fatigue_level,
          mood = EXCLUDED.mood,
-         notes = EXCLUDED.notes,
+         notes = COALESCE(health_metrics.notes, '{}'::jsonb) || COALESCE(EXCLUDED.notes, '{}'::jsonb),
          painkiller_count = EXCLUDED.painkiller_count
        RETURNING *`,
       [userId, date, painLevel, fatigueLevel, mood, notes, painkillerCount ?? 0]
